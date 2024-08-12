@@ -1,6 +1,7 @@
 from urllib.parse import urlparse
 
 from django.core.exceptions import ObjectDoesNotExist
+from django.db import IntegrityError
 from django.http import JsonResponse
 from django.shortcuts import render, redirect
 
@@ -19,8 +20,11 @@ def index(request):
             ShortedURL.objects.create(url=url, short_url=short_url)
             context.update({'success': True, 'shorted_url': short_url})
             return render(request, 'index.html', context)
-        except Exception as e:
-            context.update({'error': True, 'error_description': repr(e)})
+        except (IntegrityError, Exception) as e:
+            if isinstance(e, IntegrityError):
+                context.update({'error': True, 'error_description': f'URL {short_url} уже занят'})
+            else:
+                context.update({'error': True, 'error_description': repr(e)})
             return render(request, 'index.html', context)
 
 
@@ -32,7 +36,7 @@ def redirector(request, redirect_url):
             url = f'//{url}'
         return redirect(url)
     except ObjectDoesNotExist:
-        return render(request, 'redirect_error.html')
+        return render(request, 'redirect_error.html', {'url': request.build_absolute_uri(redirect_url)})
 
 
 def random_url_view(request):
